@@ -1,0 +1,106 @@
+﻿{
+  "info": {
+    "name": "PerfuLandia Usuarios",
+    "description": "Coleccion Postman del microservicio usuarios de PerfuLandia. Incluye evidencias de respuestas 200, 400, 401, 404 y 409.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 GET roles 200 OK",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8081/api/roles",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8081",
+          "path": ["api", "roles"]
+        }
+      }
+    },
+    {
+      "name": "02 POST login 401 Unauthorized",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"correo\": \"admin@perfulandia.cl\",\n  \"password\": \"clave_mala\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8081/api/auth/login",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8081",
+          "path": ["api", "auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "03 POST usuario 400 Bad Request",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre\": \"\",\n  \"apellido\": \"\",\n  \"correo\": \"correo-malo\",\n  \"passwordHash\": \"\",\n  \"direccionEnvio\": \"\",\n  \"estado\": true,\n  \"rol\": {\n    \"idRol\": 1\n  }\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8081/api/usuarios",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8081",
+          "path": ["api", "usuarios"]
+        }
+      }
+    },
+    {
+      "name": "04 GET usuario 404 Not Found",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8081/api/usuarios/999999",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8081",
+          "path": ["api", "usuarios", "999999"]
+        }
+      }
+    },
+    {
+      "name": "05 POST rol 409 Conflict",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombreRol\": \"ADMINISTRADOR\",\n  \"descripcion\": \"Rol duplicado para probar conflicto\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8081/api/roles",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8081",
+          "path": ["api", "roles"]
+        }
+      }
+    }
+  ]
+}
