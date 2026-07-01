@@ -44,7 +44,7 @@ public class OpenApiConfig {
                                 .name("Uso académico - Perfulandia FullStack")))
                 .servers(List.of(
                         new Server()
-                                .url("http://localhost:8086")
+                                .url("http://localhost:8070")
                                 .description("Servidor local de desarrollo")
                 ))
                 .tags(List.of(
