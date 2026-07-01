@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: soporte-service
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/perfulandia_soporte_db
+    username: root
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  hateoas:
+    use-hal-as-default-json-media-type: true
+
+server:
+  port: 8090
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
