@@ -10,7 +10,7 @@ class GatewayServiceApplicationTests {
 
     @Test
     void contextLoads() {
-        // Contexto cargado correctamente
+        
     }
 
     @Test

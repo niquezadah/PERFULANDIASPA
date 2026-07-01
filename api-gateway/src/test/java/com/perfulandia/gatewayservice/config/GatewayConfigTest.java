@@ -38,17 +38,17 @@ class GatewayConfigTest {
     }
 
     @Test
-    void deberiaTenerCantidadCorrectaDeRutas() {
-        StepVerifier.create(
-                routeLocator.getRoutes()
-                        .map(route -> route.getId())
-                        .collectList()
-        )
-        .assertNext(rutas -> {
-            assertEquals(9, rutas.size());
-        })
-        .verifyComplete();
-    }
+void deberiaTenerCantidadCorrectaDeRutas() {
+    StepVerifier.create(
+            routeLocator.getRoutes()
+                    .map(route -> route.getId())
+                    .collectList()
+    )
+    .assertNext(rutas -> {
+        assertEquals(9, rutas.size());
+    })
+    .verifyComplete();
+}
 
     @Test
     void deberiaCargarRutaSoporteService() {
