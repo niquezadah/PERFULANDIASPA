@@ -7,14 +7,13 @@ import com.perfulandia.soporte.model.PrioridadTicket;
 import com.perfulandia.soporte.model.TicketSoporte;
 import com.perfulandia.soporte.model.TipoAutorMensaje;
 import com.perfulandia.soporte.repository.MensajeTicketRepository;
-import com.perfulandia.soporte.repository.TicketSoporteRepository;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -29,7 +28,7 @@ class MensajeTicketServiceTest {
     private MensajeTicketRepository mensajeRepository;
 
     @Mock
-    private TicketSoporteRepository ticketRepository;
+    private TicketSoporteService ticketService;
 
     @InjectMocks
     private MensajeTicketService mensajeTicketService;
@@ -53,13 +52,13 @@ class MensajeTicketServiceTest {
                 .tipoAutor(TipoAutorMensaje.CLIENTE)
                 .build();
 
-        when(ticketRepository.findById(idTicket)).thenReturn(Optional.of(ticketCerrado));
+        when(ticketService.buscarPorId(idTicket)).thenReturn(ticketCerrado);
 
         assertThrows(ReglaNegocioException.class, () ->
                 mensajeTicketService.agregarMensaje(idTicket, mensaje)
         );
 
-        verify(ticketRepository).findById(idTicket);
+        verify(ticketService).buscarPorId(idTicket);
         verify(mensajeRepository, never()).save(any(MensajeTicket.class));
     }
 
@@ -82,13 +81,13 @@ class MensajeTicketServiceTest {
                 .tipoAutor(TipoAutorMensaje.CLIENTE)
                 .build();
 
-        when(ticketRepository.findById(idTicket)).thenReturn(Optional.of(ticketCancelado));
+        when(ticketService.buscarPorId(idTicket)).thenReturn(ticketCancelado);
 
         assertThrows(ReglaNegocioException.class, () ->
                 mensajeTicketService.agregarMensaje(idTicket, mensaje)
         );
 
-        verify(ticketRepository).findById(idTicket);
+        verify(ticketService).buscarPorId(idTicket);
         verify(mensajeRepository, never()).save(any(MensajeTicket.class));
     }
 }
