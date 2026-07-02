@@ -1,5 +1,5 @@
 package com.perfulandia.pedido.service;
-
+import org.springframework.web.client.HttpClientErrorException;
 import com.perfulandia.pedido.dto.ActualizarEstadoPedidoRequest;
 import com.perfulandia.pedido.dto.CrearPedidoRequest;
 import com.perfulandia.pedido.dto.DetallePedidoRequest;
@@ -13,12 +13,15 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -29,6 +32,9 @@ class PedidoServiceTest {
 
     @InjectMocks
     private PedidoService pedidoService;
+
+    @Mock
+    private RestTemplate restTemplate;
 
     @Test
     void crearPedido_deberiaCrearPedidoConTotalCorrecto() {
@@ -46,6 +52,9 @@ class PedidoServiceTest {
         request.setIdUsuario(1L);
         request.setIdTienda(1L);
         request.setDetalles(List.of(detalle1, detalle2));
+
+        when(restTemplate.getForObject(anyString(), eq(Object.class)))
+        .thenReturn(new Object());
 
         when(pedidoRepository.save(any(Pedido.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -327,5 +336,83 @@ class PedidoServiceTest {
          assertEquals("El pedido debe tener al menos un producto", exception.getMessage());
 
          verify(pedidoRepository, never()).save(any(Pedido.class));
+        }
+
+
+        @Test
+        void crearPedido_usuarioNoExiste_deberiaLanzarReglaNegocioException() {
+                DetallePedidoRequest detalle = new DetallePedidoRequest();
+                detalle.setIdProducto(1L);
+                detalle.setCantidad(1);
+                detalle.setPrecioUnitario(10000);
+
+                CrearPedidoRequest request = new CrearPedidoRequest();
+                request.setIdUsuario(99L);
+                request.setIdTienda(1L);
+                request.setDetalles(List.of(detalle));
+
+                when(restTemplate.getForObject(anyString(), eq(Object.class)))
+                        .thenThrow(HttpClientErrorException.NotFound.class);
+
+                ReglaNegocioException exception = assertThrows(
+                        ReglaNegocioException.class,
+                        () -> pedidoService.crearPedido(request)
+                );
+
+                assertEquals("El usuario con ID 99 no existe", exception.getMessage());
+                verify(pedidoRepository, never()).save(any(Pedido.class));
+            }
+
+
+        @Test
+        void crearPedido_tiendaNoExiste_deberiaLanzarReglaNegocioException() {
+            DetallePedidoRequest detalle = new DetallePedidoRequest();
+            detalle.setIdProducto(1L);
+            detalle.setCantidad(1);
+            detalle.setPrecioUnitario(10000);
+
+            CrearPedidoRequest request = new CrearPedidoRequest();
+            request.setIdUsuario(1L);
+            request.setIdTienda(99L);
+            request.setDetalles(List.of(detalle));
+
+            when(restTemplate.getForObject(anyString(), eq(Object.class)))
+                    .thenReturn(new Object())
+                    .thenThrow(HttpClientErrorException.NotFound.class);
+
+            ReglaNegocioException exception = assertThrows(
+                    ReglaNegocioException.class,
+                    () -> pedidoService.crearPedido(request)
+            );
+
+            assertEquals("La tienda con ID 99 no existe", exception.getMessage());
+            verify(pedidoRepository, never()).save(any(Pedido.class));
+        }
+
+
+        @Test
+        void crearPedido_productoNoExiste_deberiaLanzarReglaNegocioException() {
+            DetallePedidoRequest detalle = new DetallePedidoRequest();
+            detalle.setIdProducto(999L);
+            detalle.setCantidad(1);
+            detalle.setPrecioUnitario(10000);
+
+            CrearPedidoRequest request = new CrearPedidoRequest();
+            request.setIdUsuario(1L);
+            request.setIdTienda(1L);
+            request.setDetalles(List.of(detalle));
+
+            when(restTemplate.getForObject(anyString(), eq(Object.class)))
+                    .thenReturn(new Object())
+                    .thenReturn(new Object())
+                    .thenThrow(HttpClientErrorException.NotFound.class);
+
+            ReglaNegocioException exception = assertThrows(
+                    ReglaNegocioException.class,
+                    () -> pedidoService.crearPedido(request)
+            );
+
+            assertEquals("El producto con ID 999 no existe", exception.getMessage());
+            verify(pedidoRepository, never()).save(any(Pedido.class));
         }
 }
