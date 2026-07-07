@@ -2,12 +2,15 @@ package com.example.carrito_service.service;
 
 import com.example.carrito_service.dto.CarritoDTO;
 import com.example.carrito_service.dto.ProductoDTO;
+import com.example.carrito_service.dto.UsuarioDTO;
 import com.example.carrito_service.model.Carrito;
 import com.example.carrito_service.repository.CarritoRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
+
 
 import java.util.List;
 import java.util.Optional;
@@ -37,10 +40,16 @@ public class CarritoService {
     }
 
     public CarritoDTO guardarCarrito(CarritoDTO carritoDTO) {
-        ProductoDTO productoDTO = validarProductoParaCarrito(carritoDTO.getIdProducto(), carritoDTO.getCantidad());
-        Carrito carrito = convertirAEntidad(carritoDTO, productoDTO);
-        Carrito carritoGuardado = carritoRepository.save(carrito);
-        return convertirADTO(carritoGuardado);
+    validarClienteExiste(carritoDTO.getIdCliente());
+
+    ProductoDTO productoDTO = validarProductoParaCarrito(
+            carritoDTO.getIdProducto(),
+            carritoDTO.getCantidad()
+    );
+
+    Carrito carrito = convertirAEntidad(carritoDTO, productoDTO);
+    Carrito carritoGuardado = carritoRepository.save(carrito);
+    return convertirADTO(carritoGuardado);
     }
 
     public CarritoDTO actualizarCarrito(CarritoDTO carritoDTO) {
@@ -85,6 +94,27 @@ public class CarritoService {
 
     public void vaciarCarritoPorCliente(Long idCliente) {
         carritoRepository.deleteByIdCliente(idCliente);
+    }
+
+    private void validarClienteExiste(Long idCliente) {
+        UsuarioDTO usuarioDTO;
+
+        try {
+            String url = "http://localhost:8082/api/usuarios/" + idCliente;
+            usuarioDTO = restTemplate.getForObject(url, UsuarioDTO.class);
+        } catch (HttpClientErrorException.NotFound ex) {
+            throw new RuntimeException("El cliente con ID " + idCliente + " no existe");
+        } catch (RestClientException ex) {
+            throw new RuntimeException("No se pudo validar el cliente con ID " + idCliente);
+        }
+
+        if (usuarioDTO == null) {
+            throw new RuntimeException("El cliente con ID " + idCliente + " no existe");
+        }
+
+        if (!Boolean.TRUE.equals(usuarioDTO.getEstado())) {
+            throw new RuntimeException("El cliente con ID " + idCliente + " está inactivo");
+        }
     }
 
     private CarritoDTO convertirADTO(Carrito carrito) {
