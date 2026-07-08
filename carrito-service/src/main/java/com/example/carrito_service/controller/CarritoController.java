@@ -22,7 +22,7 @@ import java.util.Map;
 @RequestMapping("/api/v1/carrito")
 @Tag(
         name = "Gestión de Carrito",
-        description = "Endpoints para registrar, consultar, actualizar y eliminar productos del carrito de compra de Perfulandia."
+        description = "Endpoints para registrar, consultar, actualizar y eliminar productos del carrito de compra de Perfulandia. El servicio valida el cliente en usuario-service y el producto en inventario-catalogo-service."
 )
 public class CarritoController {
 
@@ -78,7 +78,7 @@ public class CarritoController {
 
     @Operation(
             summary = "Agregar producto al carrito",
-            description = "Crea un nuevo registro en el carrito. El producto debe existir, estar disponible y tener stock suficiente."
+            description = "Crea un nuevo registro en el carrito. El idCliente debe corresponder a un usuario existente y activo en usuario-service. El idProducto debe corresponder a un producto existente, disponible y con stock suficiente en inventario-catalogo-service."
     )
     @ApiResponses({
             @ApiResponse(
@@ -87,7 +87,7 @@ public class CarritoController {
             ),
             @ApiResponse(
                     responseCode = "400",
-                    description = "Datos inválidos, campos obligatorios faltantes o producto no válido",
+                    description = "Datos inválidos, cliente no válido o producto no válido",
                     content = @Content(
                             mediaType = "application/json",
                             schema = @Schema(type = "object"),
@@ -102,6 +102,28 @@ public class CarritoController {
                                                       "mensajes": {
                                                         "idProducto": "El ID del PRODUCTO es OBLIGATORIO"
                                                       }
+                                                    }
+                                                    """
+                                    ),
+                                    @ExampleObject(
+                                            name = "Cliente inexistente",
+                                            value = """
+                                                    {
+                                                      "timestamp": "2026-06-23T12:00:00",
+                                                      "status": 400,
+                                                      "error": "ERROR DE SOLICITUD",
+                                                      "mensaje": "El cliente con ID 99 no existe"
+                                                    }
+                                                    """
+                                    ),
+                                    @ExampleObject(
+                                            name = "Cliente inactivo",
+                                            value = """
+                                                    {
+                                                      "timestamp": "2026-06-23T12:00:00",
+                                                      "status": 400,
+                                                      "error": "ERROR DE SOLICITUD",
+                                                      "mensaje": "El cliente con ID 1 está inactivo"
                                                     }
                                                     """
                                     ),
@@ -141,7 +163,7 @@ public class CarritoController {
 
     @Operation(
             summary = "Actualizar producto del carrito",
-            description = "Actualiza la cantidad o estado de un producto existente en el carrito."
+            description = "Actualiza la cantidad o estado de un producto existente en el carrito. También valida que el cliente exista y esté activo en usuario-service, y que el producto exista, esté disponible y tenga stock suficiente en inventario-catalogo-service."
     )
     @ApiResponses({
             @ApiResponse(
@@ -150,7 +172,7 @@ public class CarritoController {
             ),
             @ApiResponse(
                     responseCode = "400",
-                    description = "Datos inválidos, campos obligatorios faltantes o producto no válido",
+                    description = "Datos inválidos, cliente no válido o producto no válido",
                     content = @Content(
                             mediaType = "application/json",
                             schema = @Schema(type = "object"),
@@ -227,7 +249,7 @@ public class CarritoController {
 
     @Operation(
             summary = "Listar carrito por cliente",
-            description = "Obtiene todos los productos del carrito asociados a un cliente."
+            description = "Obtiene todos los productos del carrito asociados a un cliente mediante su idCliente. Este idCliente corresponde al idUsuario registrado en usuario-service."
     )
     @ApiResponses({
             @ApiResponse(
@@ -265,7 +287,7 @@ public class CarritoController {
 
     @Operation(
             summary = "Listar carrito activo por cliente",
-            description = "Obtiene los productos activos del carrito de un cliente."
+            description = "Obtiene los productos activos del carrito de un cliente. El idCliente corresponde al idUsuario registrado en usuario-service."
     )
     @ApiResponses({
             @ApiResponse(
@@ -284,7 +306,7 @@ public class CarritoController {
 
     @Operation(
             summary = "Calcular total del carrito",
-            description = "Calcula el total de los productos activos del carrito de un cliente."
+            description = "Calcula el total de los productos activos del carrito de un cliente. Este total es utilizado por ventas-facturacion-service para registrar la venta y factura."
     )
     @ApiResponses({
             @ApiResponse(
@@ -303,7 +325,7 @@ public class CarritoController {
 
     @Operation(
             summary = "Vaciar carrito por cliente",
-            description = "Elimina todos los productos del carrito asociados a un cliente."
+            description = "Elimina todos los productos del carrito asociados a un cliente mediante su idCliente."
     )
     @ApiResponses({
             @ApiResponse(

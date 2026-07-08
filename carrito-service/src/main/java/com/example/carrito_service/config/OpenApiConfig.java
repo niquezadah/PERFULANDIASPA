@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Configuration;
         info = @Info(
                 title = "Perfulandia - API de Carrito",
                 version = "v1",
-                description = "Microservicio responsable de registrar, consultar, actualizar y eliminar productos del carrito de compra de Perfulandia."
+                description = "Microservicio responsable de registrar, consultar, actualizar y eliminar productos del carrito de compra de Perfulandia. Valida clientes contra usuario-service y productos contra inventario-catalogo-service antes de guardar un carrito."
         ),
         servers = {
                 @Server(
