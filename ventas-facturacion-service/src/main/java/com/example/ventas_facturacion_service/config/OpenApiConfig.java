@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Configuration;
         info = @Info(
                 title = "Perfulandia - API de Ventas y Facturación",
                 version = "v1",
-                description = "Microservicio responsable de registrar ventas, calcular totales desde el carrito y generar facturas para Perfulandia."
+                description = "Microservicio responsable de registrar ventas, generar facturas, consultar ventas y actualizar estados. Antes de registrar una venta, valida que el cliente exista y esté activo en usuario-service, y obtiene el total del carrito desde carrito-service."
         ),
         servers = {
                 @Server(
