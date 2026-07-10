@@ -17,6 +17,9 @@ public class Resena {
     private Long idResena;
 
     @Column(nullable = false)
+    private Long idCliente;
+
+    @Column(nullable = false)
     private Long idProducto;
 
     @Column(nullable = false, length = 100)

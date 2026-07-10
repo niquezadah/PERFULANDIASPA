@@ -21,7 +21,7 @@ import java.util.List;
 @RequestMapping("/api/v1/resenas")
 @Tag(
         name = "Gestión de Reseñas",
-        description = "Endpoints para registrar, consultar, actualizar, eliminar y filtrar reseñas de productos de Perfulandia."
+        description = "Endpoints para registrar, consultar, actualizar, eliminar y filtrar reseñas de productos de Perfulandia. El servicio valida clientes en usuario-service y productos en inventario-catalogo-service."
 )
 public class ResenaController {
 
@@ -75,10 +75,10 @@ public class ResenaController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @Operation(
-            summary = "Registrar reseña",
-            description = "Crea una nueva reseña asociada a un producto existente de Perfulandia."
-    )
+        @Operation(
+                summary = "Registrar reseña",
+                description = "Registra una nueva reseña de producto. El idCliente debe existir y estar activo en usuario-service. El idProducto debe existir en inventario-catalogo-service."
+        )
     @ApiResponses({
             @ApiResponse(
                     responseCode = "201",
@@ -127,10 +127,10 @@ public class ResenaController {
         return ResponseEntity.status(HttpStatus.CREATED).body(nuevaResena);
     }
 
-    @Operation(
-            summary = "Actualizar reseña",
-            description = "Actualiza todos los datos de una reseña existente."
-    )
+        @Operation(
+                summary = "Actualizar reseña",
+                description = "Actualiza todos los datos de una reseña existente. También valida que el cliente exista y esté activo en usuario-service, y que el producto exista en inventario-catalogo-service."
+        )
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
