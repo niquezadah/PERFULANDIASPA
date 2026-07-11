@@ -1,12 +1,9 @@
 package com.perfulandia.pedido.service;
 
-import org.springframework.beans.factory.annotation.Value;
-
-import org.springframework.web.client.RestTemplate;
-
 import com.perfulandia.pedido.dto.ActualizarEstadoPedidoRequest;
 import com.perfulandia.pedido.dto.CrearPedidoRequest;
 import com.perfulandia.pedido.dto.DetallePedidoRequest;
+import com.perfulandia.pedido.dto.UsuarioDTO;
 import com.perfulandia.pedido.exception.RecursoNoEncontradoException;
 import com.perfulandia.pedido.exception.ReglaNegocioException;
 import com.perfulandia.pedido.model.DetallePedido;
@@ -14,7 +11,11 @@ import com.perfulandia.pedido.model.EstadoPedido;
 import com.perfulandia.pedido.model.Pedido;
 import com.perfulandia.pedido.repository.PedidoRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -23,8 +24,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PedidoService {
 
-
     private final RestTemplate restTemplate;
+    private final PedidoRepository pedidoRepository;
 
     @Value("${usuario.service.url}")
     private String usuarioServiceUrl;
@@ -35,24 +36,18 @@ public class PedidoService {
     @Value("${producto.service.url}")
     private String productoServiceUrl;
 
-
-    private final PedidoRepository pedidoRepository;
-
     public Pedido crearPedido(CrearPedidoRequest request) {
 
         if (request.getDetalles() == null || request.getDetalles().isEmpty()) {
             throw new ReglaNegocioException("El pedido debe tener al menos un producto");
         }
 
-
-        validarUsuarioExiste(request.getIdUsuario());
+        validarUsuarioActivo(request.getIdUsuario());
         validarTiendaExiste(request.getIdTienda());
 
         for (DetallePedidoRequest detalleRequest : request.getDetalles()) {
             validarProductoExiste(detalleRequest.getIdProducto());
         }
-
-
 
         Pedido pedido = Pedido.builder()
                 .idUsuario(request.getIdUsuario())
@@ -85,33 +80,45 @@ public class PedidoService {
         return pedidoRepository.save(pedido);
     }
 
-    private void validarUsuarioExiste(Long idUsuario) {
+    private void validarUsuarioActivo(Long idUsuario) {
+        UsuarioDTO usuarioDTO;
+
         try {
-            restTemplate.getForObject(usuarioServiceUrl + "/" + idUsuario, Object.class);
-        }   
-        
-        catch (Exception ex) {
+            usuarioDTO = restTemplate.getForObject(usuarioServiceUrl + "/" + idUsuario, UsuarioDTO.class);
+        } catch (HttpClientErrorException.NotFound ex) {
             throw new ReglaNegocioException("El usuario con ID " + idUsuario + " no existe");
+        } catch (RestClientException ex) {
+            throw new ReglaNegocioException("No se pudo validar el usuario con ID " + idUsuario);
+        }
+
+        if (usuarioDTO == null) {
+            throw new ReglaNegocioException("El usuario con ID " + idUsuario + " no existe");
+        }
+
+        if (!Boolean.TRUE.equals(usuarioDTO.getEstado())) {
+            throw new ReglaNegocioException("El usuario con ID " + idUsuario + " está inactivo");
         }
     }
 
     private void validarTiendaExiste(Long idTienda) {
         try {
             restTemplate.getForObject(tiendaServiceUrl + "/" + idTienda, Object.class);
-        } catch (Exception ex) {
+        } catch (HttpClientErrorException.NotFound ex) {
             throw new ReglaNegocioException("La tienda con ID " + idTienda + " no existe");
+        } catch (RestClientException ex) {
+            throw new ReglaNegocioException("No se pudo validar la tienda con ID " + idTienda);
         }
     }
 
     private void validarProductoExiste(Long idProducto) {
         try {
             restTemplate.getForObject(productoServiceUrl + "/" + idProducto, Object.class);
-        } catch (Exception ex) {
+        } catch (HttpClientErrorException.NotFound ex) {
             throw new ReglaNegocioException("El producto con ID " + idProducto + " no existe");
+        } catch (RestClientException ex) {
+            throw new ReglaNegocioException("No se pudo validar el producto con ID " + idProducto);
         }
     }
-
-
 
     public List<Pedido> listarPedidos() {
         return pedidoRepository.findAll();
@@ -123,10 +130,12 @@ public class PedidoService {
     }
 
     public List<Pedido> buscarPorUsuario(Long idUsuario) {
+        validarUsuarioActivo(idUsuario);
         return pedidoRepository.findByIdUsuario(idUsuario);
     }
 
     public List<Pedido> buscarPorTienda(Long idTienda) {
+        validarTiendaExiste(idTienda);
         return pedidoRepository.findByIdTienda(idTienda);
     }
 
