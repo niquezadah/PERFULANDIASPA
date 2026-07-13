@@ -1,5 +1,8 @@
 package com.perfulandia.logistica.service;
 
+import com.perfulandia.logistica.client.PedidoClient;
+import com.perfulandia.logistica.client.UsuarioClient;
+import com.perfulandia.logistica.client.dto.PedidoResponse;
 import com.perfulandia.logistica.dto.ActualizarEstadoEnvioRequest;
 import com.perfulandia.logistica.dto.CrearEnvioRequest;
 import com.perfulandia.logistica.exception.RecursoNoEncontradoException;
@@ -7,14 +10,13 @@ import com.perfulandia.logistica.exception.ReglaNegocioException;
 import com.perfulandia.logistica.model.Envio;
 import com.perfulandia.logistica.model.EstadoEnvio;
 import com.perfulandia.logistica.repository.EnvioRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
-import com.perfulandia.logistica.client.PedidoClient;
-import com.perfulandia.logistica.client.UsuarioClient;
-
+@Slf4j
 @Service
 public class EnvioService {
 
@@ -23,22 +25,44 @@ public class EnvioService {
     private final UsuarioClient usuarioClient;
 
     public EnvioService(
-        EnvioRepository envioRepository,
-        PedidoClient pedidoClient,
-        UsuarioClient usuarioClient
+            EnvioRepository envioRepository,
+            PedidoClient pedidoClient,
+            UsuarioClient usuarioClient
     ) {
-    this.envioRepository = envioRepository;
-    this.pedidoClient = pedidoClient;
-    this.usuarioClient = usuarioClient;
+        this.envioRepository = envioRepository;
+        this.pedidoClient = pedidoClient;
+        this.usuarioClient = usuarioClient;
     }
 
     public Envio crearEnvio(CrearEnvioRequest request) {
+        log.info("Creando envío para pedido {} y cliente {}", request.getIdPedido(), request.getIdCliente());
+
         if (envioRepository.findByIdPedido(request.getIdPedido()).isPresent()) {
-            throw new ReglaNegocioException("Ya existe un envío registrado para el pedido " + request.getIdPedido());
+            log.warn("Intento de crear envío duplicado para pedido {}", request.getIdPedido());
+            throw new ReglaNegocioException("Ya existe un envío asociado al pedido " + request.getIdPedido());
         }
 
-        pedidoClient.validarPedidoExiste(request.getIdPedido());
+        PedidoResponse pedido = pedidoClient.obtenerPedido(request.getIdPedido());
         usuarioClient.validarUsuarioExiste(request.getIdCliente());
+
+        if (pedido.getIdUsuario() == null) {
+            log.warn("El pedido {} no tiene usuario asociado", request.getIdPedido());
+            throw new ReglaNegocioException("El pedido no tiene usuario asociado");
+        }
+
+        if (!pedido.getIdUsuario().equals(request.getIdCliente())) {
+            log.warn(
+                    "El pedido {} pertenece al usuario {}, pero se intentó crear envío para cliente {}",
+                    request.getIdPedido(),
+                    pedido.getIdUsuario(),
+                    request.getIdCliente()
+            );
+
+            throw new ReglaNegocioException(
+                    "El pedido " + request.getIdPedido() +
+                    " no pertenece al cliente " + request.getIdCliente()
+            );
+        }
 
         Envio envio = new Envio();
         envio.setIdPedido(request.getIdPedido());
@@ -46,72 +70,118 @@ public class EnvioService {
         envio.setIdTiendaOrigen(request.getIdTiendaOrigen());
         envio.setDireccionDestino(request.getDireccionDestino());
         envio.setTipoEntrega(request.getTipoEntrega());
+        envio.setEstadoEnvio(EstadoEnvio.PENDIENTE);
         envio.setFechaEntregaEstimada(request.getFechaEntregaEstimada());
         envio.setTransportista(request.getTransportista());
         envio.setNumeroSeguimiento(request.getNumeroSeguimiento());
         envio.setObservacion(request.getObservacion());
-        envio.setEstadoEnvio(EstadoEnvio.PENDIENTE);
 
-        return envioRepository.save(envio);
+        Envio envioGuardado = envioRepository.save(envio);
+
+        log.info(
+                "Envío {} creado correctamente para pedido {}",
+                envioGuardado.getIdEnvio(),
+                envioGuardado.getIdPedido()
+        );
+
+        return envioGuardado;
     }
 
     public List<Envio> listarEnvios() {
+        log.info("Listando todos los envíos");
         return envioRepository.findAll();
     }
 
     public Envio buscarPorId(Long idEnvio) {
+        log.info("Buscando envío con id {}", idEnvio);
+
         return envioRepository.findById(idEnvio)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe un envío con id " + idEnvio));
+                .orElseThrow(() -> {
+                    log.warn("No se encontró envío con id {}", idEnvio);
+                    return new RecursoNoEncontradoException("No existe un envío con id " + idEnvio);
+                });
     }
 
     public Envio buscarPorPedido(Long idPedido) {
+        log.info("Buscando envío asociado al pedido {}", idPedido);
+
         return envioRepository.findByIdPedido(idPedido)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe un envío para el pedido " + idPedido));
+                .orElseThrow(() -> {
+                    log.warn("No se encontró envío para el pedido {}", idPedido);
+                    return new RecursoNoEncontradoException("No existe un envío para el pedido " + idPedido);
+                });
     }
 
     public List<Envio> listarPorCliente(Long idCliente) {
+        log.info("Listando envíos del cliente {}", idCliente);
         return envioRepository.findByIdCliente(idCliente);
     }
 
     public List<Envio> listarPorEstado(EstadoEnvio estadoEnvio) {
+        log.info("Listando envíos con estado {}", estadoEnvio);
         return envioRepository.findByEstadoEnvio(estadoEnvio);
     }
 
     public List<Envio> listarPorTiendaOrigen(Long idTiendaOrigen) {
+        log.info("Listando envíos de la tienda origen {}", idTiendaOrigen);
         return envioRepository.findByIdTiendaOrigen(idTiendaOrigen);
     }
 
     public Envio actualizarEstado(Long idEnvio, ActualizarEstadoEnvioRequest request) {
+        log.info("Actualizando estado del envío {} a {}", idEnvio, request.getEstadoEnvio());
+
         Envio envio = buscarPorId(idEnvio);
 
-        if (envio.getEstadoEnvio() == EstadoEnvio.ENTREGADO) {
-            throw new ReglaNegocioException("No se puede modificar un envío que ya fue entregado");
-        }
+        if (envio.getEstadoEnvio() == EstadoEnvio.ENTREGADO || envio.getEstadoEnvio() == EstadoEnvio.CANCELADO) {
+            log.warn(
+                    "No se puede modificar el envío {} porque está en estado {}",
+                    idEnvio,
+                    envio.getEstadoEnvio()
+            );
 
-        if (envio.getEstadoEnvio() == EstadoEnvio.CANCELADO) {
-            throw new ReglaNegocioException("No se puede modificar un envío cancelado");
+            throw new ReglaNegocioException(
+                    "No se puede modificar un envío en estado " + envio.getEstadoEnvio()
+            );
         }
 
         envio.setEstadoEnvio(request.getEstadoEnvio());
-
-        if (request.getObservacion() != null && !request.getObservacion().isBlank()) {
-            envio.setObservacion(request.getObservacion());
-        }
+        envio.setObservacion(request.getObservacion());
 
         if (request.getEstadoEnvio() == EstadoEnvio.ENTREGADO) {
             envio.setFechaEntregaReal(LocalDateTime.now());
+            log.info("Se registró fecha de entrega real para el envío {}", idEnvio);
         }
 
-        return envioRepository.save(envio);
+        Envio envioActualizado = envioRepository.save(envio);
+
+        log.info(
+                "Estado del envío {} actualizado correctamente a {}",
+                idEnvio,
+                envioActualizado.getEstadoEnvio()
+        );
+
+        return envioActualizado;
     }
 
     public void eliminarEnvio(Long idEnvio) {
+        log.info("Eliminando envío {}", idEnvio);
+
         Envio envio = buscarPorId(idEnvio);
 
         if (envio.getEstadoEnvio() == EstadoEnvio.EN_TRANSITO || envio.getEstadoEnvio() == EstadoEnvio.ENTREGADO) {
-            throw new ReglaNegocioException("No se puede eliminar un envío en tránsito o entregado");
+            log.warn(
+                    "No se puede eliminar el envío {} porque está en estado {}",
+                    idEnvio,
+                    envio.getEstadoEnvio()
+            );
+
+            throw new ReglaNegocioException(
+                    "No se puede eliminar un envío en estado " + envio.getEstadoEnvio()
+            );
         }
 
         envioRepository.delete(envio);
+
+        log.info("Envío {} eliminado correctamente", idEnvio);
     }
 }

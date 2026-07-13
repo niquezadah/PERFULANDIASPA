@@ -1,44 +1,67 @@
 package com.perfulandia.logistica.client;
 
+import com.perfulandia.logistica.client.dto.PedidoResponse;
 import com.perfulandia.logistica.exception.ReglaNegocioException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.ResourceAccessException;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientRequestException;
+import reactor.core.publisher.Mono;
 
+@Slf4j
 @Component
 public class PedidoClient {
 
-    private final RestTemplate restTemplate;
+    private final WebClient webClient;
 
-    @Value("${pedido.service.url}")
-    private String pedidoServiceUrl;
+    public PedidoClient(
+            WebClient.Builder webClientBuilder,
+            @Value("${pedido.service.url}") String pedidoServiceUrl
+    ) {
+        this.webClient = webClientBuilder
+                .baseUrl(pedidoServiceUrl)
+                .build();
+    }
 
-    public PedidoClient(RestTemplate restTemplate) {
-        this.restTemplate = restTemplate;
+    public PedidoResponse obtenerPedido(Long idPedido) {
+        try {
+            log.info("Validando existencia del pedido {}", idPedido);
+
+            PedidoResponse pedido = webClient.get()
+                    .uri("/{idPedido}", idPedido)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::is4xxClientError, response ->
+                            Mono.error(new ReglaNegocioException("No existe un pedido con id " + idPedido))
+                    )
+                    .onStatus(HttpStatusCode::is5xxServerError, response ->
+                            Mono.error(new ReglaNegocioException("pedido-service no pudo validar el pedido " + idPedido))
+                    )
+                    .bodyToMono(PedidoResponse.class)
+                    .block();
+
+            if (pedido == null) {
+                throw new ReglaNegocioException("pedido-service no devolvió información del pedido " + idPedido);
+            }
+
+            return pedido;
+
+        } catch (ReglaNegocioException ex) {
+            log.warn("Validación de pedido fallida: {}", ex.getMessage());
+            throw ex;
+
+        } catch (WebClientRequestException ex) {
+            log.error("No se pudo conectar con pedido-service", ex);
+            throw new ReglaNegocioException("No se pudo conectar con pedido-service");
+
+        } catch (Exception ex) {
+            log.error("Error inesperado al validar pedido {}", idPedido, ex);
+            throw new ReglaNegocioException("Error al validar el pedido con id " + idPedido);
+        }
     }
 
     public void validarPedidoExiste(Long idPedido) {
-        try {
-            ResponseEntity<String> response = restTemplate.getForEntity(
-                    pedidoServiceUrl + "/" + idPedido,
-                    String.class
-            );
-
-            if (!response.getStatusCode().is2xxSuccessful()) {
-                throw new ReglaNegocioException("No se pudo validar el pedido con id " + idPedido);
-            }
-
-        } catch (HttpClientErrorException.NotFound ex) {
-            throw new ReglaNegocioException("No existe un pedido con id " + idPedido);
-
-        } catch (HttpClientErrorException ex) {
-            throw new ReglaNegocioException("Error al validar el pedido con id " + idPedido);
-
-        } catch (ResourceAccessException ex) {
-            throw new ReglaNegocioException("No se pudo conectar con pedido-service");
-        }
+        obtenerPedido(idPedido);
     }
 }
