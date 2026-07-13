@@ -2,22 +2,18 @@ package com.example.soporte_resena_service.service;
 
 import com.example.soporte_resena_service.dto.ProductoDTO;
 import com.example.soporte_resena_service.dto.ResenaDTO;
+import com.example.soporte_resena_service.dto.UsuarioDTO;
 import com.example.soporte_resena_service.model.Resena;
 import com.example.soporte_resena_service.repository.ResenaRepository;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,6 +23,9 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ResenaServiceTest {
+
+    private static final String URL_USUARIO_1 = "http://localhost:8082/api/usuarios/1";
+    private static final String URL_PRODUCTO_1 = "http://localhost:8092/api/v1/productos/1";
 
     @Mock
     private ResenaRepository resenaRepository;
@@ -50,10 +49,11 @@ class ResenaServiceTest {
         assertAll(
                 () -> assertEquals(1, resultado.size()),
                 () -> assertEquals(1L, resultado.get(0).getIdResena()),
+                () -> assertEquals(1L, resultado.get(0).getIdCliente()),
                 () -> assertEquals(1L, resultado.get(0).getIdProducto()),
-                () -> assertEquals("JUAN PEREZ", resultado.get(0).getNombreCliente()),
+                () -> assertEquals("Nicolás Quezada", resultado.get(0).getNombreCliente()),
                 () -> assertEquals(5, resultado.get(0).getCalificacion()),
-                () -> assertEquals("Excelente producto ecológico", resultado.get(0).getComentario()),
+                () -> assertEquals("Aroma elegante, buena fijación y presentación muy cuidada.", resultado.get(0).getComentario()),
                 () -> assertTrue(resultado.get(0).getActiva())
         );
 
@@ -75,8 +75,9 @@ class ResenaServiceTest {
         assertTrue(resultado.isPresent());
         assertAll(
                 () -> assertEquals(id, resultado.get().getIdResena()),
+                () -> assertEquals(1L, resultado.get().getIdCliente()),
                 () -> assertEquals(1L, resultado.get().getIdProducto()),
-                () -> assertEquals("JUAN PEREZ", resultado.get().getNombreCliente()),
+                () -> assertEquals("Nicolás Quezada", resultado.get().getNombreCliente()),
                 () -> assertEquals(5, resultado.get().getCalificacion()),
                 () -> assertTrue(resultado.get().getActiva())
         );
@@ -101,14 +102,13 @@ class ResenaServiceTest {
     }
 
     @Test
-    void guardarResena_cuandoProductoExiste_deberiaGuardarYRetornarResenaDTO() {
+    void guardarResena_cuandoClienteYProductoExisten_deberiaGuardarYRetornarResenaDTO() {
         //given
         ResenaDTO resenaDTO = crearResenaDTO(null, true);
         Resena resenaGuardada = crearResena(1L, true);
 
-        String url = "http://localhost:8092/api/v1/productos/1";
-
-        when(restTemplate.getForObject(url, ProductoDTO.class)).thenReturn(crearProductoDTO(1L));
+        simularClienteValido();
+        simularProductoValido();
         when(resenaRepository.save(any(Resena.class))).thenReturn(resenaGuardada);
 
         //when
@@ -117,32 +117,114 @@ class ResenaServiceTest {
         //then
         assertAll(
                 () -> assertEquals(1L, resultado.getIdResena()),
+                () -> assertEquals(1L, resultado.getIdCliente()),
                 () -> assertEquals(1L, resultado.getIdProducto()),
-                () -> assertEquals("JUAN PEREZ", resultado.getNombreCliente()),
+                () -> assertEquals("Nicolás Quezada", resultado.getNombreCliente()),
                 () -> assertEquals(5, resultado.getCalificacion()),
-                () -> assertEquals("Excelente producto ecológico", resultado.getComentario()),
+                () -> assertEquals("Aroma elegante, buena fijación y presentación muy cuidada.", resultado.getComentario()),
                 () -> assertTrue(resultado.getActiva())
         );
 
-        verify(restTemplate).getForObject(url, ProductoDTO.class);
+        verify(restTemplate).getForObject(URL_USUARIO_1, UsuarioDTO.class);
+        verify(restTemplate).getForObject(URL_PRODUCTO_1, ProductoDTO.class);
         verify(resenaRepository).save(any(Resena.class));
+    }
+
+    @Test
+    void guardarResena_cuandoClienteNoExiste_deberiaLanzarRuntimeException() {
+        //given
+        ResenaDTO resenaDTO = crearResenaDTO(null, true);
+        HttpClientErrorException.NotFound error = mock(HttpClientErrorException.NotFound.class);
+
+        when(restTemplate.getForObject(URL_USUARIO_1, UsuarioDTO.class)).thenThrow(error);
+
+        //when
+        RuntimeException exception = assertThrows(
+                RuntimeException.class,
+                () -> resenaService.guardarResena(resenaDTO)
+        );
+
+        //then
+        assertEquals("El cliente con ID 1 no existe", exception.getMessage());
+
+        verify(restTemplate).getForObject(URL_USUARIO_1, UsuarioDTO.class);
+        verify(restTemplate, never()).getForObject(URL_PRODUCTO_1, ProductoDTO.class);
+        verify(resenaRepository, never()).save(any(Resena.class));
+    }
+
+    @Test
+    void guardarResena_cuandoUsuarioServiceNoResponde_deberiaLanzarRuntimeException() {
+        //given
+        ResenaDTO resenaDTO = crearResenaDTO(null, true);
+
+        when(restTemplate.getForObject(URL_USUARIO_1, UsuarioDTO.class))
+                .thenThrow(new RestClientException("Error de conexión"));
+
+        //when
+        RuntimeException exception = assertThrows(
+                RuntimeException.class,
+                () -> resenaService.guardarResena(resenaDTO)
+        );
+
+        //then
+        assertEquals("No se pudo validar el cliente con ID 1", exception.getMessage());
+
+        verify(restTemplate).getForObject(URL_USUARIO_1, UsuarioDTO.class);
+        verify(restTemplate, never()).getForObject(URL_PRODUCTO_1, ProductoDTO.class);
+        verify(resenaRepository, never()).save(any(Resena.class));
+    }
+
+    @Test
+    void guardarResena_cuandoClienteRetornaNull_deberiaLanzarRuntimeException() {
+        //given
+        ResenaDTO resenaDTO = crearResenaDTO(null, true);
+
+        when(restTemplate.getForObject(URL_USUARIO_1, UsuarioDTO.class)).thenReturn(null);
+
+        //when
+        RuntimeException exception = assertThrows(
+                RuntimeException.class,
+                () -> resenaService.guardarResena(resenaDTO)
+        );
+
+        //then
+        assertEquals("El cliente con ID 1 no existe", exception.getMessage());
+
+        verify(restTemplate).getForObject(URL_USUARIO_1, UsuarioDTO.class);
+        verify(restTemplate, never()).getForObject(URL_PRODUCTO_1, ProductoDTO.class);
+        verify(resenaRepository, never()).save(any(Resena.class));
+    }
+
+    @Test
+    void guardarResena_cuandoClienteEstaInactivo_deberiaLanzarRuntimeException() {
+        //given
+        ResenaDTO resenaDTO = crearResenaDTO(null, true);
+
+        when(restTemplate.getForObject(URL_USUARIO_1, UsuarioDTO.class))
+                .thenReturn(crearUsuarioDTO(false));
+
+        //when
+        RuntimeException exception = assertThrows(
+                RuntimeException.class,
+                () -> resenaService.guardarResena(resenaDTO)
+        );
+
+        //then
+        assertEquals("El cliente con ID 1 está inactivo", exception.getMessage());
+
+        verify(restTemplate).getForObject(URL_USUARIO_1, UsuarioDTO.class);
+        verify(restTemplate, never()).getForObject(URL_PRODUCTO_1, ProductoDTO.class);
+        verify(resenaRepository, never()).save(any(Resena.class));
     }
 
     @Test
     void guardarResena_cuandoProductoNoExiste_deberiaLanzarRuntimeException() {
         //given
         ResenaDTO resenaDTO = crearResenaDTO(null, true);
-        String url = "http://localhost:8092/api/v1/productos/1";
+        HttpClientErrorException.NotFound error = mock(HttpClientErrorException.NotFound.class);
 
-        HttpClientErrorException errorNotFound = HttpClientErrorException.create(
-                HttpStatus.NOT_FOUND,
-                "Not Found",
-                HttpHeaders.EMPTY,
-                new byte[0],
-                StandardCharsets.UTF_8
-        );
-
-        when(restTemplate.getForObject(url, ProductoDTO.class)).thenThrow(errorNotFound);
+        simularClienteValido();
+        when(restTemplate.getForObject(URL_PRODUCTO_1, ProductoDTO.class)).thenThrow(error);
 
         //when
         RuntimeException exception = assertThrows(
@@ -153,19 +235,64 @@ class ResenaServiceTest {
         //then
         assertEquals("El producto con ID 1 no existe", exception.getMessage());
 
-        verify(restTemplate).getForObject(url, ProductoDTO.class);
+        verify(restTemplate).getForObject(URL_USUARIO_1, UsuarioDTO.class);
+        verify(restTemplate).getForObject(URL_PRODUCTO_1, ProductoDTO.class);
         verify(resenaRepository, never()).save(any(Resena.class));
     }
 
     @Test
-    void actualizarResena_cuandoProductoExiste_deberiaActualizarYRetornarResenaDTO() {
+    void guardarResena_cuandoProductoServiceNoResponde_deberiaLanzarRuntimeException() {
+        //given
+        ResenaDTO resenaDTO = crearResenaDTO(null, true);
+
+        simularClienteValido();
+        when(restTemplate.getForObject(URL_PRODUCTO_1, ProductoDTO.class))
+                .thenThrow(new RestClientException("Error de conexión"));
+
+        //when
+        RuntimeException exception = assertThrows(
+                RuntimeException.class,
+                () -> resenaService.guardarResena(resenaDTO)
+        );
+
+        //then
+        assertEquals("No se pudo validar el producto con ID 1", exception.getMessage());
+
+        verify(restTemplate).getForObject(URL_USUARIO_1, UsuarioDTO.class);
+        verify(restTemplate).getForObject(URL_PRODUCTO_1, ProductoDTO.class);
+        verify(resenaRepository, never()).save(any(Resena.class));
+    }
+
+    @Test
+    void guardarResena_cuandoProductoRetornaNull_deberiaLanzarRuntimeException() {
+        //given
+        ResenaDTO resenaDTO = crearResenaDTO(null, true);
+
+        simularClienteValido();
+        when(restTemplate.getForObject(URL_PRODUCTO_1, ProductoDTO.class)).thenReturn(null);
+
+        //when
+        RuntimeException exception = assertThrows(
+                RuntimeException.class,
+                () -> resenaService.guardarResena(resenaDTO)
+        );
+
+        //then
+        assertEquals("El producto con ID 1 no existe", exception.getMessage());
+
+        verify(restTemplate).getForObject(URL_USUARIO_1, UsuarioDTO.class);
+        verify(restTemplate).getForObject(URL_PRODUCTO_1, ProductoDTO.class);
+        verify(resenaRepository, never()).save(any(Resena.class));
+    }
+
+    @Test
+    void actualizarResena_cuandoClienteYProductoExisten_deberiaActualizarYRetornarResenaDTO() {
         //given
         ResenaDTO resenaDTO = crearResenaDTO(1L, true);
         Resena resenaActualizada = crearResena(1L, true);
 
-        String url = "http://localhost:8092/api/v1/productos/1";
-
-        when(restTemplate.getForObject(url, ProductoDTO.class)).thenReturn(crearProductoDTO(1L));
+        simularClienteValido();
+        simularProductoValido();
         when(resenaRepository.save(any(Resena.class))).thenReturn(resenaActualizada);
 
         //when
@@ -174,31 +301,48 @@ class ResenaServiceTest {
         //then
         assertAll(
                 () -> assertEquals(1L, resultado.getIdResena()),
+                () -> assertEquals(1L, resultado.getIdCliente()),
                 () -> assertEquals(1L, resultado.getIdProducto()),
-                () -> assertEquals("JUAN PEREZ", resultado.getNombreCliente()),
+                () -> assertEquals("Nicolás Quezada", resultado.getNombreCliente()),
                 () -> assertEquals(5, resultado.getCalificacion()),
                 () -> assertTrue(resultado.getActiva())
         );
 
-        verify(restTemplate).getForObject(url, ProductoDTO.class);
+        verify(restTemplate).getForObject(URL_USUARIO_1, UsuarioDTO.class);
+        verify(restTemplate).getForObject(URL_PRODUCTO_1, ProductoDTO.class);
         verify(resenaRepository).save(any(Resena.class));
+    }
+
+    @Test
+    void actualizarResena_cuandoClienteNoExiste_deberiaLanzarRuntimeException() {
+        //given
+        ResenaDTO resenaDTO = crearResenaDTO(1L, true);
+        HttpClientErrorException.NotFound error = mock(HttpClientErrorException.NotFound.class);
+
+        when(restTemplate.getForObject(URL_USUARIO_1, UsuarioDTO.class)).thenThrow(error);
+
+        //when
+        RuntimeException exception = assertThrows(
+                RuntimeException.class,
+                () -> resenaService.actualizarResena(resenaDTO)
+        );
+
+        //then
+        assertEquals("El cliente con ID 1 no existe", exception.getMessage());
+
+        verify(restTemplate).getForObject(URL_USUARIO_1, UsuarioDTO.class);
+        verify(restTemplate, never()).getForObject(URL_PRODUCTO_1, ProductoDTO.class);
+        verify(resenaRepository, never()).save(any(Resena.class));
     }
 
     @Test
     void actualizarResena_cuandoProductoNoExiste_deberiaLanzarRuntimeException() {
         //given
         ResenaDTO resenaDTO = crearResenaDTO(1L, true);
-        String url = "http://localhost:8092/api/v1/productos/1";
+        HttpClientErrorException.NotFound error = mock(HttpClientErrorException.NotFound.class);
 
-        HttpClientErrorException errorNotFound = HttpClientErrorException.create(
-                HttpStatus.NOT_FOUND,
-                "Not Found",
-                HttpHeaders.EMPTY,
-                new byte[0],
-                StandardCharsets.UTF_8
-        );
-
-        when(restTemplate.getForObject(url, ProductoDTO.class)).thenThrow(errorNotFound);
+        simularClienteValido();
+        when(restTemplate.getForObject(URL_PRODUCTO_1, ProductoDTO.class)).thenThrow(error);
 
         //when
         RuntimeException exception = assertThrows(
@@ -209,7 +353,8 @@ class ResenaServiceTest {
         //then
         assertEquals("El producto con ID 1 no existe", exception.getMessage());
 
-        verify(restTemplate).getForObject(url, ProductoDTO.class);
+        verify(restTemplate).getForObject(URL_USUARIO_1, UsuarioDTO.class);
+        verify(restTemplate).getForObject(URL_PRODUCTO_1, ProductoDTO.class);
         verify(resenaRepository, never()).save(any(Resena.class));
     }
 
@@ -267,11 +412,8 @@ class ResenaServiceTest {
         List<ResenaDTO> resultado = resenaService.listarResenasPorProducto(idProducto);
 
         //then
-        assertAll(
-                () -> assertEquals(1, resultado.size()),
-                () -> assertEquals(idProducto, resultado.get(0).getIdProducto()),
-                () -> assertEquals("JUAN PEREZ", resultado.get(0).getNombreCliente())
-        );
+        assertEquals(1, resultado.size());
+        assertEquals(idProducto, resultado.get(0).getIdProducto());
 
         verify(resenaRepository).findByIdProducto(idProducto);
     }
@@ -287,11 +429,8 @@ class ResenaServiceTest {
         List<ResenaDTO> resultado = resenaService.listarResenasActivas();
 
         //then
-        assertAll(
-                () -> assertEquals(1, resultado.size()),
-                () -> assertTrue(resultado.get(0).getActiva()),
-                () -> assertEquals("JUAN PEREZ", resultado.get(0).getNombreCliente())
-        );
+        assertEquals(1, resultado.size());
+        assertTrue(resultado.get(0).getActiva());
 
         verify(resenaRepository).findByActiva(true);
     }
@@ -308,22 +447,56 @@ class ResenaServiceTest {
         List<ResenaDTO> resultado = resenaService.listarResenasPorCalificacion(calificacion);
 
         //then
-        assertAll(
-                () -> assertEquals(1, resultado.size()),
-                () -> assertEquals(calificacion, resultado.get(0).getCalificacion()),
-                () -> assertEquals("Excelente producto ecológico", resultado.get(0).getComentario())
-        );
+        assertEquals(1, resultado.size());
+        assertEquals(calificacion, resultado.get(0).getCalificacion());
 
         verify(resenaRepository).findByCalificacion(calificacion);
+    }
+
+    private void simularClienteValido() {
+        when(restTemplate.getForObject(URL_USUARIO_1, UsuarioDTO.class))
+                .thenReturn(crearUsuarioDTO(true));
+    }
+
+    private void simularProductoValido() {
+        when(restTemplate.getForObject(URL_PRODUCTO_1, ProductoDTO.class))
+                .thenReturn(crearProductoDTO());
+    }
+
+    private UsuarioDTO crearUsuarioDTO(Boolean estado) {
+        return new UsuarioDTO(
+                1L,
+                "Nicolás",
+                "Quezada",
+                "nicolas.quezada@perfulandia.cl",
+                "Concepción, Región del Biobío",
+                estado,
+                1L,
+                "CLIENTE"
+        );
+    }
+
+    private ProductoDTO crearProductoDTO() {
+        return new ProductoDTO(
+                1L,
+                "Eau de Parfum Rosas del Sur",
+                "Perfume floral de larga duración para uso diario",
+                "PERFUMERIA",
+                10,
+                24990.0,
+                true,
+                1L
+        );
     }
 
     private Resena crearResena(Long id, Boolean activa) {
         return new Resena(
                 id,
                 1L,
-                "JUAN PEREZ",
+                1L,
+                "Nicolás Quezada",
                 5,
-                "Excelente producto ecológico",
+                "Aroma elegante, buena fijación y presentación muy cuidada.",
                 activa
         );
     }
@@ -332,23 +505,11 @@ class ResenaServiceTest {
         return new ResenaDTO(
                 id,
                 1L,
-                "JUAN PEREZ",
+                1L,
+                "Nicolás Quezada",
                 5,
-                "Excelente producto ecológico",
+                "Aroma elegante, buena fijación y presentación muy cuidada.",
                 activa
-        );
-    }
-
-    private ProductoDTO crearProductoDTO(Long id) {
-        return new ProductoDTO(
-                id,
-                "SHAMPOO ECOLOGICO",
-                "Producto ecológico para el cuidado personal",
-                "CUIDADO PERSONAL",
-                20,
-                4990.0,
-                true,
-                1L
         );
     }
 }

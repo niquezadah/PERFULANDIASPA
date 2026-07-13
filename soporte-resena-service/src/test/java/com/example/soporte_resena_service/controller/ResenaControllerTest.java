@@ -2,7 +2,6 @@ package com.example.soporte_resena_service.controller;
 
 import com.example.soporte_resena_service.dto.ResenaDTO;
 import com.example.soporte_resena_service.service.ResenaService;
-
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,8 +48,9 @@ class ResenaControllerTest {
         resultado.andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].idResena").value(1L))
+                .andExpect(jsonPath("$[0].idCliente").value(1L))
                 .andExpect(jsonPath("$[0].idProducto").value(1L))
-                .andExpect(jsonPath("$[0].nombreCliente").value("JUAN PEREZ"))
+                .andExpect(jsonPath("$[0].nombreCliente").value("Nicolás Quezada"))
                 .andExpect(jsonPath("$[0].calificacion").value(5))
                 .andExpect(jsonPath("$[0].activa").value(true));
 
@@ -71,10 +71,11 @@ class ResenaControllerTest {
         //then
         resultado.andExpect(status().isOk())
                 .andExpect(jsonPath("$.idResena").value(id))
+                .andExpect(jsonPath("$.idCliente").value(1L))
                 .andExpect(jsonPath("$.idProducto").value(1L))
-                .andExpect(jsonPath("$.nombreCliente").value("JUAN PEREZ"))
+                .andExpect(jsonPath("$.nombreCliente").value("Nicolás Quezada"))
                 .andExpect(jsonPath("$.calificacion").value(5))
-                .andExpect(jsonPath("$.comentario").value("Excelente producto ecológico"))
+                .andExpect(jsonPath("$.comentario").value("Aroma elegante, buena fijación y presentación muy cuidada."))
                 .andExpect(jsonPath("$.activa").value(true));
 
         Mockito.verify(resenaService).buscarResenaPorId(id);
@@ -103,26 +104,17 @@ class ResenaControllerTest {
 
         Mockito.when(resenaService.guardarResena(any(ResenaDTO.class))).thenReturn(resenaCreada);
 
-        String body = """
-                {
-                    "idProducto": 1,
-                    "nombreCliente": "JUAN PEREZ",
-                    "calificacion": 5,
-                    "comentario": "Excelente producto ecológico",
-                    "activa": true
-                }
-                """;
-
         //when
         ResultActions resultado = mockMvc.perform(post("/api/v1/resenas")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(body));
+                .content(bodyValido()));
 
         //then
         resultado.andExpect(status().isCreated())
                 .andExpect(jsonPath("$.idResena").value(1L))
+                .andExpect(jsonPath("$.idCliente").value(1L))
                 .andExpect(jsonPath("$.idProducto").value(1L))
-                .andExpect(jsonPath("$.nombreCliente").value("JUAN PEREZ"))
+                .andExpect(jsonPath("$.nombreCliente").value("Nicolás Quezada"))
                 .andExpect(jsonPath("$.calificacion").value(5))
                 .andExpect(jsonPath("$.activa").value(true));
 
@@ -130,14 +122,15 @@ class ResenaControllerTest {
     }
 
     @Test
-    void crearResena_conDatosInvalidos_deberiaRetornar400() throws Exception {
+    void crearResena_conNombreClienteVacio_deberiaRetornar400() throws Exception {
         //given
         String body = """
                 {
+                    "idCliente": 1,
                     "idProducto": 1,
                     "nombreCliente": "",
                     "calificacion": 5,
-                    "comentario": "Excelente producto ecológico",
+                    "comentario": "Aroma elegante, buena fijación y presentación muy cuidada.",
                     "activa": true
                 }
                 """;
@@ -157,17 +150,14 @@ class ResenaControllerTest {
     }
 
     @Test
-    void crearResena_cuandoServiceLanzaRuntimeException_deberiaRetornar400() throws Exception {
+    void crearResena_sinIdCliente_deberiaRetornar400() throws Exception {
         //given
-        Mockito.when(resenaService.guardarResena(any(ResenaDTO.class)))
-                .thenThrow(new RuntimeException("El producto con ID 1 no existe"));
-
         String body = """
                 {
                     "idProducto": 1,
-                    "nombreCliente": "JUAN PEREZ",
+                    "nombreCliente": "Nicolás Quezada",
                     "calificacion": 5,
-                    "comentario": "Excelente producto ecológico",
+                    "comentario": "Aroma elegante, buena fijación y presentación muy cuidada.",
                     "activa": true
                 }
                 """;
@@ -180,8 +170,56 @@ class ResenaControllerTest {
         //then
         resultado.andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("ERROR VALIDACIÓN"))
+                .andExpect(jsonPath("$.mensajes.idCliente").value("El ID del CLIENTE es OBLIGATORIO"));
+
+        Mockito.verify(resenaService, never()).guardarResena(any(ResenaDTO.class));
+    }
+
+    @Test
+    void crearResena_conCalificacionMayorA5_deberiaRetornar400() throws Exception {
+        //given
+        String body = """
+                {
+                    "idCliente": 1,
+                    "idProducto": 1,
+                    "nombreCliente": "Nicolás Quezada",
+                    "calificacion": 6,
+                    "comentario": "Aroma elegante, buena fijación y presentación muy cuidada.",
+                    "activa": true
+                }
+                """;
+
+        //when
+        ResultActions resultado = mockMvc.perform(post("/api/v1/resenas")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body));
+
+        //then
+        resultado.andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("ERROR VALIDACIÓN"))
+                .andExpect(jsonPath("$.mensajes.calificacion").value("La CALIFICACIÓN máxima es 5"));
+
+        Mockito.verify(resenaService, never()).guardarResena(any(ResenaDTO.class));
+    }
+
+    @Test
+    void crearResena_cuandoServiceLanzaRuntimeException_deberiaRetornar400() throws Exception {
+        //given
+        Mockito.when(resenaService.guardarResena(any(ResenaDTO.class)))
+                .thenThrow(new RuntimeException("El cliente con ID 1 no existe"));
+
+        //when
+        ResultActions resultado = mockMvc.perform(post("/api/v1/resenas")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(bodyValido()));
+
+        //then
+        resultado.andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("ERROR DE SOLICITUD"))
-                .andExpect(jsonPath("$.mensaje").value("El producto con ID 1 no existe"));
+                .andExpect(jsonPath("$.mensaje").value("El cliente con ID 1 no existe"));
 
         Mockito.verify(resenaService).guardarResena(any(ResenaDTO.class));
     }
@@ -195,26 +233,17 @@ class ResenaControllerTest {
         Mockito.when(resenaService.existeResenaPorId(id)).thenReturn(true);
         Mockito.when(resenaService.actualizarResena(any(ResenaDTO.class))).thenReturn(resenaActualizada);
 
-        String body = """
-                {
-                    "idProducto": 1,
-                    "nombreCliente": "JUAN PEREZ",
-                    "calificacion": 5,
-                    "comentario": "Excelente producto ecológico",
-                    "activa": true
-                }
-                """;
-
         //when
         ResultActions resultado = mockMvc.perform(put("/api/v1/resenas/{id}", id)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(body));
+                .content(bodyValido()));
 
         //then
         resultado.andExpect(status().isOk())
                 .andExpect(jsonPath("$.idResena").value(id))
+                .andExpect(jsonPath("$.idCliente").value(1L))
                 .andExpect(jsonPath("$.idProducto").value(1L))
-                .andExpect(jsonPath("$.nombreCliente").value("JUAN PEREZ"))
+                .andExpect(jsonPath("$.nombreCliente").value("Nicolás Quezada"))
                 .andExpect(jsonPath("$.calificacion").value(5));
 
         Mockito.verify(resenaService).existeResenaPorId(id);
@@ -228,20 +257,10 @@ class ResenaControllerTest {
 
         Mockito.when(resenaService.existeResenaPorId(id)).thenReturn(false);
 
-        String body = """
-                {
-                    "idProducto": 1,
-                    "nombreCliente": "JUAN PEREZ",
-                    "calificacion": 5,
-                    "comentario": "Excelente producto ecológico",
-                    "activa": true
-                }
-                """;
-
         //when
         ResultActions resultado = mockMvc.perform(put("/api/v1/resenas/{id}", id)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(body));
+                .content(bodyValido()));
 
         //then
         resultado.andExpect(status().isNotFound());
@@ -259,20 +278,10 @@ class ResenaControllerTest {
         Mockito.when(resenaService.actualizarResena(any(ResenaDTO.class)))
                 .thenThrow(new RuntimeException("El producto con ID 1 no existe"));
 
-        String body = """
-                {
-                    "idProducto": 1,
-                    "nombreCliente": "JUAN PEREZ",
-                    "calificacion": 5,
-                    "comentario": "Excelente producto ecológico",
-                    "activa": true
-                }
-                """;
-
         //when
         ResultActions resultado = mockMvc.perform(put("/api/v1/resenas/{id}", id)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(body));
+                .content(bodyValido()));
 
         //then
         resultado.andExpect(status().isBadRequest())
@@ -332,8 +341,9 @@ class ResenaControllerTest {
         //then
         resultado.andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].idCliente").value(1L))
                 .andExpect(jsonPath("$[0].idProducto").value(idProducto))
-                .andExpect(jsonPath("$[0].nombreCliente").value("JUAN PEREZ"));
+                .andExpect(jsonPath("$[0].nombreCliente").value("Nicolás Quezada"));
 
         Mockito.verify(resenaService).listarResenasPorProducto(idProducto);
     }
@@ -351,8 +361,9 @@ class ResenaControllerTest {
         //then
         resultado.andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].idCliente").value(1L))
                 .andExpect(jsonPath("$[0].activa").value(true))
-                .andExpect(jsonPath("$[0].nombreCliente").value("JUAN PEREZ"));
+                .andExpect(jsonPath("$[0].nombreCliente").value("Nicolás Quezada"));
 
         Mockito.verify(resenaService).listarResenasActivas();
     }
@@ -371,19 +382,34 @@ class ResenaControllerTest {
         //then
         resultado.andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].idCliente").value(1L))
                 .andExpect(jsonPath("$[0].calificacion").value(calificacion))
-                .andExpect(jsonPath("$[0].comentario").value("Excelente producto ecológico"));
+                .andExpect(jsonPath("$[0].comentario").value("Aroma elegante, buena fijación y presentación muy cuidada."));
 
         Mockito.verify(resenaService).listarResenasPorCalificacion(calificacion);
+    }
+
+    private String bodyValido() {
+        return """
+                {
+                    "idCliente": 1,
+                    "idProducto": 1,
+                    "nombreCliente": "Nicolás Quezada",
+                    "calificacion": 5,
+                    "comentario": "Aroma elegante, buena fijación y presentación muy cuidada.",
+                    "activa": true
+                }
+                """;
     }
 
     private ResenaDTO crearResenaDTO(Long id, Boolean activa) {
         return new ResenaDTO(
                 id,
                 1L,
-                "JUAN PEREZ",
+                1L,
+                "Nicolás Quezada",
                 5,
-                "Excelente producto ecológico",
+                "Aroma elegante, buena fijación y presentación muy cuidada.",
                 activa
         );
     }

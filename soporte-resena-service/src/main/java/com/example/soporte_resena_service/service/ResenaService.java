@@ -1,12 +1,14 @@
 package com.example.soporte_resena_service.service;
 
+import com.example.soporte_resena_service.dto.ProductoDTO;
 import com.example.soporte_resena_service.dto.ResenaDTO;
+import com.example.soporte_resena_service.dto.UsuarioDTO;
 import com.example.soporte_resena_service.model.Resena;
 import com.example.soporte_resena_service.repository.ResenaRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.example.soporte_resena_service.dto.ProductoDTO;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
@@ -37,6 +39,7 @@ public class ResenaService {
     }
 
     public ResenaDTO guardarResena(ResenaDTO resenaDTO) {
+        validarClienteExiste(resenaDTO.getIdCliente());
         validarProductoExiste(resenaDTO.getIdProducto());
 
         Resena resena = convertirAEntidad(resenaDTO);
@@ -45,6 +48,7 @@ public class ResenaService {
     }
 
     public ResenaDTO actualizarResena(ResenaDTO resenaDTO) {
+        validarClienteExiste(resenaDTO.getIdCliente());
         validarProductoExiste(resenaDTO.getIdProducto());
 
         Resena resena = convertirAEntidad(resenaDTO);
@@ -58,15 +62,6 @@ public class ResenaService {
 
     public void eliminarResena(Long id) {
         resenaRepository.deleteById(id);
-    }
-
-    private void validarProductoExiste(Long idProducto) {
-        try {
-            String url = "http://localhost:8092/api/v1/productos/" + idProducto;
-            restTemplate.getForObject(url, ProductoDTO.class);
-        } catch (HttpClientErrorException.NotFound ex) {
-            throw new RuntimeException("El producto con ID " + idProducto + " no existe");
-        }
     }
 
     public List<ResenaDTO> listarResenasPorProducto(Long idProducto) {
@@ -90,9 +85,48 @@ public class ResenaService {
                 .toList();
     }
 
+    private void validarClienteExiste(Long idCliente) {
+        UsuarioDTO usuarioDTO;
+
+        try {
+            String url = "http://localhost:8082/api/usuarios/" + idCliente;
+            usuarioDTO = restTemplate.getForObject(url, UsuarioDTO.class);
+        } catch (HttpClientErrorException.NotFound ex) {
+            throw new RuntimeException("El cliente con ID " + idCliente + " no existe");
+        } catch (RestClientException ex) {
+            throw new RuntimeException("No se pudo validar el cliente con ID " + idCliente);
+        }
+
+        if (usuarioDTO == null) {
+            throw new RuntimeException("El cliente con ID " + idCliente + " no existe");
+        }
+
+        if (!Boolean.TRUE.equals(usuarioDTO.getEstado())) {
+            throw new RuntimeException("El cliente con ID " + idCliente + " está inactivo");
+        }
+    }
+
+    private void validarProductoExiste(Long idProducto) {
+        ProductoDTO productoDTO;
+
+        try {
+            String url = "http://localhost:8092/api/v1/productos/" + idProducto;
+            productoDTO = restTemplate.getForObject(url, ProductoDTO.class);
+        } catch (HttpClientErrorException.NotFound ex) {
+            throw new RuntimeException("El producto con ID " + idProducto + " no existe");
+        } catch (RestClientException ex) {
+            throw new RuntimeException("No se pudo validar el producto con ID " + idProducto);
+        }
+
+        if (productoDTO == null) {
+            throw new RuntimeException("El producto con ID " + idProducto + " no existe");
+        }
+    }
+
     private ResenaDTO convertirADTO(Resena resena) {
         return new ResenaDTO(
                 resena.getIdResena(),
+                resena.getIdCliente(),
                 resena.getIdProducto(),
                 resena.getNombreCliente(),
                 resena.getCalificacion(),
@@ -104,6 +138,7 @@ public class ResenaService {
     private Resena convertirAEntidad(ResenaDTO resenaDTO) {
         return new Resena(
                 resenaDTO.getIdResena(),
+                resenaDTO.getIdCliente(),
                 resenaDTO.getIdProducto(),
                 resenaDTO.getNombreCliente(),
                 resenaDTO.getCalificacion(),
@@ -111,5 +146,4 @@ public class ResenaService {
                 resenaDTO.getActiva()
         );
     }
-    
 }

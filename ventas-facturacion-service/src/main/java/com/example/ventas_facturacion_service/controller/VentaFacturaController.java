@@ -76,10 +76,10 @@ public class VentaFacturaController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @Operation(
-            summary = "Registrar venta y generar factura",
-            description = "Registra una venta para un cliente. El total se obtiene desde el carrito activo del cliente."
-    )
+        @Operation(
+                summary = "Registrar venta y factura",
+                description = "Registra una venta y genera una factura para un cliente. El servicio valida que el idCliente exista y esté activo en usuario-service. Además, obtiene el total real del carrito desde carrito-service antes de guardar la venta."
+        )
     @ApiResponses({
             @ApiResponse(
                     responseCode = "201",
@@ -128,10 +128,10 @@ public class VentaFacturaController {
         return ResponseEntity.status(HttpStatus.CREATED).body(nuevaVenta);
     }
 
-    @Operation(
-            summary = "Actualizar venta y factura",
-            description = "Actualiza los datos principales de una venta existente y recalcula el total desde el carrito del cliente."
-    )
+        @Operation(
+                summary = "Actualizar venta y factura",
+                description = "Actualiza una venta existente. También valida que el cliente exista y esté activo en usuario-service, y obtiene nuevamente el total del carrito desde carrito-service."
+        )
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",

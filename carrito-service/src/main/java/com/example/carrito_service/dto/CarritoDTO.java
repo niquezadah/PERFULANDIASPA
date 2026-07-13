@@ -22,14 +22,14 @@ public class CarritoDTO {
     private Long idCarrito;
 
     @Schema(
-            description = "ID del cliente dueño del carrito.",
+            description = "ID del cliente dueño del carrito. Debe existir y estar activo en usuario-service. Corresponde al idUsuario del cliente.",
             example = "1"
     )
     @NotNull(message = "El ID del CLIENTE es OBLIGATORIO")
     private Long idCliente;
 
     @Schema(
-            description = "ID del producto que se desea agregar al carrito. Debe corresponder a un producto existente.",
+            description = "ID del producto que se desea agregar al carrito. Debe existir en inventario-catalogo-service, estar disponible y tener stock suficiente.",
             example = "1"
     )
     @NotNull(message = "El ID del PRODUCTO es OBLIGATORIO")
@@ -44,7 +44,7 @@ public class CarritoDTO {
     private String nombreProducto;
 
     @Schema(
-            description = "Cantidad del producto que el cliente desea comprar.",
+            description = "Cantidad del producto que el cliente desea comprar. Debe ser mayor o igual a 1 y no superar el stock disponible.",
             example = "2"
     )
     @NotNull(message = "La CANTIDAD del PRODUCTO es OBLIGATORIA")

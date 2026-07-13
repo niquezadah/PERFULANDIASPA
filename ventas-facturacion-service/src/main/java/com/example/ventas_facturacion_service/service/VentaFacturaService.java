@@ -1,12 +1,14 @@
 package com.example.ventas_facturacion_service.service;
 
 import com.example.ventas_facturacion_service.dto.EstadoVentaDTO;
+import com.example.ventas_facturacion_service.dto.UsuarioDTO;
 import com.example.ventas_facturacion_service.dto.VentaFacturaDTO;
 import com.example.ventas_facturacion_service.model.VentaFactura;
 import com.example.ventas_facturacion_service.repository.VentaFacturaRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDate;
@@ -41,6 +43,8 @@ public class VentaFacturaService {
     }
 
     public VentaFacturaDTO guardarVentaFactura(VentaFacturaDTO ventaFacturaDTO) {
+        validarClienteExiste(ventaFacturaDTO.getIdCliente());
+
         Double totalCarrito = obtenerTotalCarrito(ventaFacturaDTO.getIdCliente());
         VentaFactura ventaFactura = convertirAEntidad(ventaFacturaDTO, totalCarrito);
         VentaFactura ventaGuardada = ventaFacturaRepository.save(ventaFactura);
@@ -87,6 +91,27 @@ public class VentaFacturaService {
         ventaFactura.setEstadoVenta(estadoVentaDTO.getEstadoVenta());
         VentaFactura ventaActualizada = ventaFacturaRepository.save(ventaFactura);
         return convertirADTO(ventaActualizada);
+    }
+
+    private void validarClienteExiste(Long idCliente) {
+        UsuarioDTO usuarioDTO;
+
+        try {
+            String url = "http://localhost:8082/api/usuarios/" + idCliente;
+            usuarioDTO = restTemplate.getForObject(url, UsuarioDTO.class);
+        } catch (HttpClientErrorException.NotFound ex) {
+            throw new RuntimeException("El cliente con ID " + idCliente + " no existe");
+        } catch (RestClientException ex) {
+            throw new RuntimeException("No se pudo validar el cliente con ID " + idCliente);
+        }
+
+        if (usuarioDTO == null) {
+            throw new RuntimeException("El cliente con ID " + idCliente + " no existe");
+        }
+
+        if (!Boolean.TRUE.equals(usuarioDTO.getEstado())) {
+            throw new RuntimeException("El cliente con ID " + idCliente + " está inactivo");
+        }
     }
 
     private VentaFacturaDTO convertirADTO(VentaFactura ventaFactura) {
@@ -146,6 +171,8 @@ public class VentaFacturaService {
             respuesta = restTemplate.getForObject(url, Map.class);
         } catch (HttpClientErrorException.NotFound ex) {
             throw new RuntimeException("El carrito del cliente con ID " + idCliente + " no existe");
+        } catch (RestClientException ex) {
+            throw new RuntimeException("No se pudo obtener el total del carrito del cliente con ID " + idCliente);
         }
 
         if (respuesta == null || respuesta.get("total") == null) {

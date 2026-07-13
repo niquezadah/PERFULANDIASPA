@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Configuration;
         info = @Info(
                 title = "Perfulandia - API de Soporte y Reseñas",
                 version = "v1",
-                description = "Microservicio responsable de registrar, consultar, actualizar, eliminar y filtrar reseñas de productos de Perfulandia."
+                description = "Microservicio responsable de registrar, consultar, actualizar, eliminar y filtrar reseñas de productos de Perfulandia. Valida clientes contra usuario-service y productos contra inventario-catalogo-service antes de guardar una reseña."
         ),
         servers = {
                 @Server(

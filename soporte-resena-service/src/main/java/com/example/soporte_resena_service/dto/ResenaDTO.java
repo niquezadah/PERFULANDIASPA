@@ -29,7 +29,14 @@ public class ResenaDTO {
     private Long idResena;
 
     @Schema(
-            description = "ID del producto asociado a la reseña. Debe corresponder a un producto existente.",
+            description = "ID del cliente que realiza la reseña. Debe existir y estar activo en usuario-service.",
+            example = "1"
+    )
+    @NotNull(message = "El ID del CLIENTE es OBLIGATORIO")
+    private Long idCliente;
+
+    @Schema(
+            description = "ID del producto asociado a la reseña. Debe corresponder a un producto existente en inventario-catalogo-service.",
             example = "1"
     )
     @NotNull(message = "El ID del PRODUCTO es OBLIGATORIO")
@@ -37,7 +44,7 @@ public class ResenaDTO {
 
     @Schema(
             description = "Nombre del cliente que realiza la reseña.",
-            example = "Valentina Rojas"
+            example = "Nicolás Quezada"
     )
     @NotBlank(message = "El NOMBRE del CLIENTE es OBLIGATORIO")
     @Size(max = 100, message = "El NOMBRE del CLIENTE no puede superar los 100 caracteres")
