@@ -11,25 +11,22 @@ public class GatewayConfig {
     @Bean
     public RouteLocator rutas(RouteLocatorBuilder builder) {
         return builder.routes()
+
                 // SOPORTE SERVICE
-               .route("soporte-service", r -> r
-                    .path("/api/soporte/**")
-                    .filters(f -> f.rewritePath("/api/soporte/(?<segment>.*)", "/api/${segment}"))
-                    .uri("http://localhost:8070"))
-
-
+                .route("soporte-service", r -> r
+                        .path("/api/soporte/**")
+                        .filters(f -> f.rewritePath("/api/soporte/(?<segment>.*)", "/api/${segment}"))
+                        .uri("http://localhost:8070"))
 
                 // PEDIDO SERVICE
                 .route("pedido-service", r -> r
-                    .path("/api/pedidos", "/api/pedidos/**")
-                    .uri("http://localhost:8071"))
+                        .path("/api/pedidos", "/api/pedidos/**")
+                        .uri("http://localhost:8071"))
 
                 // TIENDAS SERVICE
                 .route("tiendas-service", r -> r
                         .path("/api/v1/tiendas", "/api/v1/tiendas/**")
                         .uri("http://localhost:8091"))
-
-
 
                 // INVENTARIO / CATALOGO SERVICE
                 .route("inventario-catalogo-service", r -> r
@@ -40,18 +37,15 @@ public class GatewayConfig {
                         )
                         .uri("http://localhost:8092"))
 
-
                 // RESEÑA SERVICE
                 .route("resena-service", r -> r
                         .path("/api/v1/resenas", "/api/v1/resenas/**")
                         .uri("http://localhost:8093"))
 
-
                 // AUTENTICACION SERVICE
                 .route("autenticacion-service", r -> r
                         .path("/api/auth", "/api/auth/**")
                         .uri("http://localhost:8081"))
-
 
                 // CARRITO SERVICE
                 .route("carrito-service", r -> r
@@ -72,6 +66,10 @@ public class GatewayConfig {
                         )
                         .uri("http://localhost:8082"))
 
+                // LOGISTICA SERVICE
+                .route("logistica-service", r -> r
+                        .path("/api/v1/logistica", "/api/v1/logistica/**")
+                        .uri("http://localhost:8096"))
 
                 .build();
     }

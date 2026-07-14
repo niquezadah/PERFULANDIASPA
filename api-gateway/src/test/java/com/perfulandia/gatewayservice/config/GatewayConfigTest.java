@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@SpringBootTest
+@SpringBootTest(properties = "server.port=0")
 class GatewayConfigTest {
 
     @Autowired
@@ -33,22 +33,21 @@ class GatewayConfigTest {
             assertTrue(rutas.contains("carrito-service"));
             assertTrue(rutas.contains("ventas-facturacion-service"));
             assertTrue(rutas.contains("usuario-service"));
+            assertTrue(rutas.contains("logistica-service"));
         })
         .verifyComplete();
     }
 
     @Test
-void deberiaTenerCantidadCorrectaDeRutas() {
-    StepVerifier.create(
-            routeLocator.getRoutes()
-                    .map(route -> route.getId())
-                    .collectList()
-    )
-    .assertNext(rutas -> {
-        assertEquals(9, rutas.size());
-    })
-    .verifyComplete();
-}
+    void deberiaTenerCantidadCorrectaDeRutas() {
+        StepVerifier.create(
+                routeLocator.getRoutes()
+                        .map(route -> route.getId())
+                        .collectList()
+        )
+        .assertNext(rutas -> assertEquals(10, rutas.size()))
+        .verifyComplete();
+    }
 
     @Test
     void deberiaCargarRutaSoporteService() {
@@ -96,15 +95,18 @@ void deberiaTenerCantidadCorrectaDeRutas() {
     }
 
     @Test
+    void deberiaCargarRutaLogisticaService() {
+        verificarRutaExiste("logistica-service");
+    }
+
+    @Test
     void noDeberiaExistirRutaInvalida() {
         StepVerifier.create(
                 routeLocator.getRoutes()
                         .map(route -> route.getId())
                         .collectList()
         )
-        .assertNext(rutas -> {
-            assertFalse(rutas.contains("servicio-inexistente"));
-        })
+        .assertNext(rutas -> assertFalse(rutas.contains("servicio-inexistente")))
         .verifyComplete();
     }
 

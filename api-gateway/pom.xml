@@ -11,9 +11,8 @@
 	<groupId>com.perfulandia</groupId>
 	<artifactId>gateway-service</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name/>
-	<description/>
-	<url/>
+	<name>gateway-service</name>
+	<description>API Gateway de Perfulandia SPA para centralizar rutas hacia los microservicios</description>	<url/>
 	<licenses>
 		<license/>
 	</licenses>
