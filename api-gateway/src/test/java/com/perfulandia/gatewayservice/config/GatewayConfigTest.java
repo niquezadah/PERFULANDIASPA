@@ -34,6 +34,17 @@ class GatewayConfigTest {
             assertTrue(rutas.contains("ventas-facturacion-service"));
             assertTrue(rutas.contains("usuario-service"));
             assertTrue(rutas.contains("logistica-service"));
+
+            assertTrue(rutas.contains("openapi-autenticacion"));
+            assertTrue(rutas.contains("openapi-usuarios"));
+            assertTrue(rutas.contains("openapi-soporte"));
+            assertTrue(rutas.contains("openapi-pedidos"));
+            assertTrue(rutas.contains("openapi-tiendas"));
+            assertTrue(rutas.contains("openapi-inventario"));
+            assertTrue(rutas.contains("openapi-resenas"));
+            assertTrue(rutas.contains("openapi-carrito"));
+            assertTrue(rutas.contains("openapi-ventas"));
+            assertTrue(rutas.contains("openapi-logistica"));
         })
         .verifyComplete();
     }
@@ -45,7 +56,7 @@ class GatewayConfigTest {
                         .map(route -> route.getId())
                         .collectList()
         )
-        .assertNext(rutas -> assertEquals(10, rutas.size()))
+        .assertNext(rutas -> assertEquals(21, rutas.size()))
         .verifyComplete();
     }
 

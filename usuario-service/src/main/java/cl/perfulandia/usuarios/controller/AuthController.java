@@ -14,6 +14,9 @@ import cl.perfulandia.usuarios.model.Usuario;
 import cl.perfulandia.usuarios.service.UsuarioService;
 import jakarta.validation.Valid;
 
+import io.swagger.v3.oas.annotations.Hidden;
+
+@Hidden
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {

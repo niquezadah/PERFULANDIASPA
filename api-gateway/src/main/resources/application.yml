@@ -5,6 +5,49 @@ spring:
 server:
   port: 8090
 
+springdoc:
+  api-docs:
+    enabled: true
+
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    disable-swagger-default-url: true
+    operations-sorter: method
+    tags-sorter: alpha
+    urls-primary-name: Usuarios, Roles y Permisos
+
+    urls:
+      - name: Autenticación
+        url: /openapi/autenticacion
+
+      - name: Usuarios, Roles y Permisos
+        url: /openapi/usuarios
+
+      - name: Soporte
+        url: /openapi/soporte
+
+      - name: Pedidos
+        url: /openapi/pedidos
+
+      - name: Tiendas
+        url: /openapi/tiendas
+
+      - name: Inventario y Catálogo
+        url: /openapi/inventario
+
+      - name: Reseñas
+        url: /openapi/resenas
+
+      - name: Carrito
+        url: /openapi/carrito
+
+      - name: Ventas y Facturación
+        url: /openapi/ventas
+
+      - name: Logística
+        url: /openapi/logistica
+
 logging:
   level:
     org.springframework.cloud.gateway: INFO
